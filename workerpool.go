@@ -1,4 +1,4 @@
-package pool
+package gpool
 
 import (
 	"log"
