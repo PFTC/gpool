@@ -12,18 +12,19 @@ type WorkerPool struct {
 	workers         []*Worker
 	lock            sync.Mutex
 	maxIdleTime     time.Duration
-	stop			chan struct{}
-	stopFlag		bool
+	stop            chan struct{}
+	stopFlag        bool
 }
 
 type Worker struct {
 	fn           chan func()
-	lastUsedTime time.Duration
+	lastUsedTime int64
 }
 
 func NewLimit(num int) (*WorkerPool, error) {
 	wp := &WorkerPool{
-		workerNumber: num,
+		maxWorkerNumber: num,
+		maxIdleTime:     10 * time.Minute,
 	}
 
 	return wp, nil
@@ -31,7 +32,8 @@ func NewLimit(num int) (*WorkerPool, error) {
 
 func NewUnlimit() (*WorkerPool, error) {
 	wp := &WorkerPool{
-		workerNumber: -1,
+		maxWorkerNumber: -1,
+		maxIdleTime:     10 * time.Minute,
 	}
 
 	return wp, nil
@@ -44,7 +46,7 @@ func (wp *WorkerPool) init() {
 		select {
 		case <-tick:
 			wp.cleanup()
-		case <- wp.stop:
+		case <-wp.stop:
 			wp.stopPool()
 			break
 		}
@@ -53,9 +55,9 @@ func (wp *WorkerPool) init() {
 
 func (wp *WorkerPool) cleanup() {
 	i := 0
-	now := time.Now()
-	for i=0; i<len(wp.workers); i++ {
-		if now - wp.workers[i].lastUsedTime < wp.maxIdleTime {
+	now := time.Now().Unix()
+	for i = 0; i < len(wp.workers); i++ {
+		if time.Duration(now-wp.workers[i].lastUsedTime) < wp.maxIdleTime {
 			break
 		}
 	}
@@ -85,14 +87,15 @@ func (wp *WorkerPool) Queue(fn func()) {
 }
 
 func (wp *WorkerPool) GetWorker() *Worker {
-	if len(workers) == 0 {
-		wp.workerNumber ++
+	if len(wp.workers) == 0 {
+		wp.workerNumber++
 		if wp.maxWorkerNumber != -1 && wp.workerNumber > wp.maxWorkerNumber {
 			//log
+			log.Println("worker number excess max")
 			return nil
 		}
-		worker := &Worker {
-			fn: make(chan func())
+		worker := &Worker{
+			fn: make(chan func()),
 		}
 		go wp.StartWorker(worker)
 		return worker
