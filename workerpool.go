@@ -68,13 +68,14 @@ func NewUnlimit(recycleTime int) (*WorkerPool, error) {
 // init func will be in charge of cleaning up goroutines and receiving the stop signal.
 func (wp *WorkerPool) init() {
 	tick := time.Tick(wp.maxIdleTime)
+L:
 	for {
 		select {
 		case <-tick:
 			wp.cleanup()
 		case <-wp.stop:
 			wp.wg.Wait()
-			break
+			break L
 		}
 	}
 }
