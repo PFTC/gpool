@@ -1,9 +1,14 @@
 package gpool
 
 import (
-	"log"
+	"errors"
 	"sync"
 	"time"
+)
+
+var (
+	// need have a more suitable error name
+	ErrMaxWorkerNum = errors.New("worker number excess max")
 )
 
 // WorkerPool define a worker pool
@@ -106,13 +111,11 @@ func (wp *WorkerPool) StopPool() {
 // Queue assigns a worker for job (fn func(), with closure we can define every job in this form)
 //
 // If the worker pool is limited-number and the worker number has reached the limit, we prefer to discard the job.
-func (wp *WorkerPool) Queue(fn func()) {
-	worker := wp.GetWorker()
-	if worker == nil {
-		log.Print("get worker Failed")
-		return
+func (wp *WorkerPool) Queue(fn func()) (err error) {
+	if worker, err := wp.GetWorker(); err == nil {
+		worker.fn <- fn
 	}
-	worker.fn <- fn
+	return
 }
 
 // GetWorker select a worker.
@@ -120,15 +123,14 @@ func (wp *WorkerPool) Queue(fn func()) {
 // If the available worker queue is empty, we will new a worker.
 // else we will select the last worker, in this case, the worker queue
 // is like a FILO queue, and the select algorithm is kind of like LRU.
-func (wp *WorkerPool) getWorker() *Worker {
+func (wp *WorkerPool) getWorker() (worker *Worker, err error) {
 	if len(wp.workers) == 0 {
 		wp.workerNumber++
 		if wp.maxWorkerNumber != -1 && wp.workerNumber > wp.maxWorkerNumber {
-			//log
-			log.Println("worker number excess max")
-			return nil
+			err = ErrMaxWorkerNum
+			return
 		}
-		worker := &Worker{
+		worker = &Worker{
 			fn: make(chan func()),
 		}
 		go wp.StartWorker(worker)
@@ -136,7 +138,7 @@ func (wp *WorkerPool) getWorker() *Worker {
 	}
 
 	wp.lock.Lock()
-	worker := wp.workers[len(wp.workers)-1]
+	worker = wp.workers[len(wp.workers)-1]
 	wp.workers = wp.workers[:len(wp.workers)-1]
 	wp.lock.Unlock()
 	return worker
