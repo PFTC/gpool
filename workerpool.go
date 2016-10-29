@@ -93,7 +93,7 @@ func (wp *WorkerPool) cleanup() {
 }
 
 // stopPool stops the worker pool.
-func (wp *WorkerPool) stopPool() {
+func (wp *WorkerPool) StopPool() {
 	wp.stopFlag = true
 
 	wp.lock.Lock()
@@ -120,7 +120,7 @@ func (wp *WorkerPool) Queue(fn func()) {
 // If the available worker queue is empty, we will new a worker.
 // else we will select the last worker, in this case, the worker queue
 // is like a FILO queue, and the select algorithm is kind of like LRU.
-func (wp *WorkerPool) GetWorker() *Worker {
+func (wp *WorkerPool) getWorker() *Worker {
 	if len(wp.workers) == 0 {
 		wp.workerNumber++
 		if wp.maxWorkerNumber != -1 && wp.workerNumber > wp.maxWorkerNumber {
@@ -143,7 +143,7 @@ func (wp *WorkerPool) GetWorker() *Worker {
 }
 
 // StartWorker starts a new goroutine.
-func (wp *WorkerPool) StartWorker(worker *Worker) {
+func (wp *WorkerPool) startWorker(worker *Worker) {
 	for f := range worker.fn {
 		if f == nil {
 			break
