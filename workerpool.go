@@ -75,6 +75,11 @@ func (wp *WorkerPool) init() {
 	}()
 }
 
+// Stop stop goroutine pool
+func (wp *WorkerPool) Stop() {
+	wp.stop <- struct{}{}
+}
+
 // cleanup cleans up the available worker queue.
 func (wp *WorkerPool) cleanup() {
 	i := 0
@@ -93,7 +98,7 @@ func (wp *WorkerPool) cleanup() {
 }
 
 // stopPool stops the worker pool.
-func (wp *WorkerPool) StopPool() {
+func (wp *WorkerPool) stopPool() {
 	wp.stopFlag = true
 
 	wp.lock.Lock()
@@ -107,7 +112,7 @@ func (wp *WorkerPool) StopPool() {
 //
 // If the worker pool is limited-number and the worker number has reached the limit, we prefer to discard the job.
 func (wp *WorkerPool) Queue(fn func()) {
-	worker := wp.GetWorker()
+	worker := wp.getWorker()
 	if worker == nil {
 		log.Print("get worker Failed")
 		return
@@ -131,7 +136,7 @@ func (wp *WorkerPool) getWorker() *Worker {
 		worker := &Worker{
 			fn: make(chan func()),
 		}
-		go wp.StartWorker(worker)
+		go wp.startWorker(worker)
 		return worker
 	}
 
