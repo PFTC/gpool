@@ -1,4 +1,4 @@
-## This is a goroutine pool
+## This is a goroutine pool, dynamically adjust the goroutine number
 
 ## Overview
 
